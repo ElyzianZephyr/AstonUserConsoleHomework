@@ -1,4 +1,4 @@
-package org.userservice.config;
+package org.userservice.util;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;

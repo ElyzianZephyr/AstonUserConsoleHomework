@@ -2,32 +2,29 @@
 <Configuration status="WARN">
 
     <Appenders>
-        <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="[%-5level] %msg%n"/>
-        </Console>
-
-        <File name="File" fileName="logs/user-service.log">
+        <File name="File" fileName="logs/user-service.log" append="true">
             <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} [%-5level] %logger{1} - %msg%n"/>
         </File>
     </Appenders>
 
     <Loggers>
-        <Logger name="org.userservice" level="INFO"/>
-        <Logger name="org.hibernate" level="WARN"/>
-        <Root level="ERROR"/>
+        <Logger name="org.userservice" level="DEBUG" additivity="false">
+            <AppenderRef ref="File"/>
+        </Logger>
 
-        <!-- Показывать SQL -->
+        <Logger name="org.hibernate" level="WARN" additivity="false">
+            <AppenderRef ref="File"/>
+        </Logger>
+
         <Logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
-            <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
         </Logger>
 
-        <!-- Показывать параметры запросов -->
         <Logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
-            <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
         </Logger>
 
+        <Root level="OFF"/>
     </Loggers>
 
 </Configuration>

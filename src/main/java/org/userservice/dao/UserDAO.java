@@ -1,6 +1,6 @@
-package org.example.dao;
+package org.userservice.dao;
 
-import org.example.entity.User;
+import org.userservice.entity.User;
 
 import java.util.List;
 import java.util.Optional;

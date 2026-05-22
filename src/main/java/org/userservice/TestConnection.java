@@ -1,4 +1,4 @@
-package org.example;
+package org.userservice;
 
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
