@@ -5,6 +5,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
+/// Знаю про Lombok
 
 @Entity
 @Table(name = "users")

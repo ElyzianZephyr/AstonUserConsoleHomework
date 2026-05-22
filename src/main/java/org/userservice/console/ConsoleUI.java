@@ -1,8 +1,8 @@
 package org.userservice.console;
 
-
 import org.userservice.entity.User;
 import org.userservice.service.UserService;
+import org.userservice.exeption.UserServiceException; // Добавлен импорт твоего исключения
 
 import java.util.List;
 import java.util.Optional;
@@ -67,7 +67,9 @@ public class ConsoleUI {
             System.out.println("User created successfully!");
             printUser(user);
         } catch (IllegalArgumentException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("Validation Error: " + e.getMessage());
+        } catch (UserServiceException e) { // Обработка ошибки БД
+            System.out.println("Database Error: " + e.getMessage());
         }
     }
 
@@ -79,13 +81,17 @@ public class ConsoleUI {
         Long id = readId();
         if (id == null) return;
 
-        Optional<User> userOpt = userService.findUser(id);
+        try {
+            Optional<User> userOpt = userService.findUser(id);
 
-        if (userOpt.isPresent()) {
-            System.out.println("User found:");
-            printUser(userOpt.get());
-        } else {
-            System.out.println("User with ID=" + id + " not found.");
+            if (userOpt.isPresent()) {
+                System.out.println("User found:");
+                printUser(userOpt.get());
+            } else {
+                System.out.println("User with ID=" + id + " not found.");
+            }
+        } catch (UserServiceException e) { // Обработка ошибки БД
+            System.out.println("Database Error: " + e.getMessage());
         }
     }
 
@@ -97,43 +103,47 @@ public class ConsoleUI {
         Long id = readId();
         if (id == null) return;
 
-        Optional<User> userOpt = userService.findUser(id);
-        if (userOpt.isEmpty()) {
-            System.out.println("User with ID=" + id + " not found.");
-            return;
-        }
-
-        User user = userOpt.get();
-        System.out.println("\nCurrent user data:");
-        printUser(user);
-
-        boolean updating = true;
-        while (updating) {
-            printUpdateMenu();
-            String choice = scanner.nextLine().trim();
-
-            switch (choice) {
-                case "1" -> {
-                    String newName = readName();
-                    updateUserField(id, newName, user.getAge(), user.getEmail());
-                    updating = false;
-                }
-                case "2" -> {
-                    int newAge = readAge();
-                    updateUserField(id, user.getName(), newAge, user.getEmail());
-                    updating = false;
-                }
-                case "3" -> {
-                    String newEmail = readEmail();
-                    updateUserField(id, user.getName(), user.getAge(), newEmail);
-                    updating = false;
-                }
-                case "0" -> {
-                    System.out.println("Update cancelled.");
-                    updating = false;
-                }
-                default -> System.out.println("Invalid choice. Try again.");
+        try {
+            Optional<User> userOpt = userService.findUser(id);
+            if (userOpt.isEmpty()) {
+                System.out.println("User with ID=" + id + " not found.");
+                return;
             }
+
+            User user = userOpt.get();
+            System.out.println("\nCurrent user data:");
+            printUser(user);
+
+            boolean updating = true;
+            while (updating) {
+                printUpdateMenu();
+                String choice = scanner.nextLine().trim();
+
+                switch (choice) {
+                    case "1" -> {
+                        String newName = readName();
+                        updateUserField(id, newName, user.getAge(), user.getEmail());
+                        updating = false;
+                    }
+                    case "2" -> {
+                        int newAge = readAge();
+                        updateUserField(id, user.getName(), newAge, user.getEmail());
+                        updating = false;
+                    }
+                    case "3" -> {
+                        String newEmail = readEmail();
+                        updateUserField(id, user.getName(), user.getAge(), newEmail);
+                        updating = false;
+                    }
+                    case "0" -> {
+                        System.out.println("Update cancelled.");
+                        updating = false;
+                    }
+                    default -> System.out.println("Invalid choice. Try again.");
+                }
+            }
+        } catch (UserServiceException e) { // Обработка ошибки БД
+            System.out.println("Database Error: " + e.getMessage());
         }
     }
 
@@ -152,7 +162,9 @@ public class ConsoleUI {
             System.out.println("User updated successfully!");
             printUser(updated);
         } catch (IllegalArgumentException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("Validation Error: " + e.getMessage());
+        } catch (UserServiceException e) { // Обработка ошибки БД
+            System.out.println("Database Error: " + e.getMessage());
         }
     }
 
@@ -164,24 +176,28 @@ public class ConsoleUI {
         Long id = readId();
         if (id == null) return;
 
-        Optional<User> userOpt = userService.findUser(id);
-        if (userOpt.isEmpty()) {
-            System.out.println("User with ID=" + id + " not found.");
-            return;
-        }
-
-        System.out.println("User to delete:");
-        printUser(userOpt.get());
-
-        if (confirmAction("Are you sure you want to delete this user? (y/n): ")) {
-            boolean deleted = userService.deleteUser(id);
-            if (deleted) {
-                System.out.println("User deleted successfully.");
-            } else {
-                System.out.println("Failed to delete user.");
+        try {
+            Optional<User> userOpt = userService.findUser(id);
+            if (userOpt.isEmpty()) {
+                System.out.println("User with ID=" + id + " not found.");
+                return;
             }
-        } else {
-            System.out.println("Deletion cancelled.");
+
+            System.out.println("User to delete:");
+            printUser(userOpt.get());
+
+            if (confirmAction("Are you sure you want to delete this user? (y/n): ")) {
+                boolean deleted = userService.deleteUser(id);
+                if (deleted) {
+                    System.out.println("User deleted successfully.");
+                } else {
+                    System.out.println("Failed to delete user.");
+                }
+            } else {
+                System.out.println("Deletion cancelled.");
+            }
+        } catch (UserServiceException e) { // Обработка ошибки БД
+            System.out.println("Database Error: " + e.getMessage());
         }
     }
 
@@ -190,19 +206,23 @@ public class ConsoleUI {
     private void listAllUsers() {
         System.out.println("\n--- All Users ---");
 
-        List<User> users = userService.getAllUsers();
+        try {
+            List<User> users = userService.getAllUsers();
 
-        if (users.isEmpty()) {
-            System.out.println("No users found.");
-            return;
-        }
+            if (users.isEmpty()) {
+                System.out.println("No users found.");
+                return;
+            }
 
-        System.out.println("Total users: " + users.size());
-        for (User user : users) {
+            System.out.println("Total users: " + users.size());
+            for (User user : users) {
+                printSeparator();
+                printUser(user);
+            }
             printSeparator();
-            printUser(user);
+        } catch (UserServiceException e) { // Обработка ошибки БД
+            System.out.println("Database Error: " + e.getMessage());
         }
-        printSeparator();
     }
 
     // ==================== INPUT METHODS ====================

@@ -5,6 +5,7 @@ import org.hibernate.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.userservice.entity.User;
+import org.userservice.exeption.UserServiceException;
 import org.userservice.util.HibernateUtil;
 
 import java.util.List;
@@ -30,7 +31,7 @@ public class UserDAOImpl implements UserDAO {
                 tx.rollback();
             }
             logger.error("Ошибка при сохранении пользователя: {}", e.getMessage());
-            throw new RuntimeException("Не удалось сохранить пользователя", e);
+            throw new UserServiceException("Ошибка БД: не удалось сохранить пользователя", e);
         } finally {
             if (session != null) {
                 session.close();
@@ -48,7 +49,7 @@ public class UserDAOImpl implements UserDAO {
             return Optional.ofNullable(user);
         } catch (Exception e) {
             logger.error("Ошибка при поиске пользователя по id {}", e.getMessage());
-            throw new RuntimeException("Не удалось найти пользователя по id", e);
+            throw new UserServiceException("Не удалось найти пользователя по id", e);
         } finally {
             if (session != null) {
                 session.close();
@@ -68,7 +69,7 @@ public class UserDAOImpl implements UserDAO {
             return users;
         } catch (Exception e) {
             logger.error("Ошибка при получении списка пользователей: {}", e.getMessage());
-            throw new RuntimeException("Не удалось получить список пользователей", e);
+            throw new UserServiceException("Не удалось получить список пользователей", e);
         } finally {
             if (session != null) {
                 session.close();
@@ -92,7 +93,7 @@ public class UserDAOImpl implements UserDAO {
                 tx.rollback();
             }
             logger.error("Ошибка при обновлении пользователя {}", e.getMessage());
-            throw new RuntimeException("Не удалось обновить данные пользователя", e);
+            throw new UserServiceException("Не удалось обновить данные пользователя", e);
         }finally {
             if (session != null) {
                 session.close();
@@ -122,7 +123,7 @@ public class UserDAOImpl implements UserDAO {
                 tx.rollback();
             }
             logger.error("Не получилось удалить пользователя {}", e.getMessage());
-            throw new RuntimeException("Не удалось удалить пользователя", e);
+            throw new UserServiceException("Не удалось удалить пользователя", e);
         }
         finally {
             if (session != null) {
