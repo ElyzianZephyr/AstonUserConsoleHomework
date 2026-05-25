@@ -10,125 +10,102 @@ import org.userservice.util.HibernateUtil;
 
 import java.util.List;
 import java.util.Optional;
-
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 
 public class UserDAOImpl implements UserDAO {
 
     private static final Logger logger = LoggerFactory.getLogger(UserDAOImpl.class);
-    @Override
-    public void save(User user) {
-        Session session = null;
-        Transaction tx = null;
-        try {
-            session = HibernateUtil.getSessionFactory().openSession();
-            tx = session.beginTransaction();
-            session.persist(user);
-            tx.commit();
-            logger.info("Пользователь сохранён: {}", user);
-        } catch (Exception e) {
-            if (tx != null) {
-                tx.rollback();
+
+
+    /**
+     * Обобщенный метод для операций с возвращаемым значением (Read: findById, findAll)
+     */
+    private <T> T executeWithResult(Function<Session, T> action, String errorMessage){
+        try(Session session = HibernateUtil.getSessionFactory().openSession()) {
+            Transaction transaction = session.beginTransaction();
+            try{
+                T result = action.apply(session);
+                transaction.commit();
+                return result;
+            } catch (Exception e){
+                if (transaction != null) transaction.rollback();
+                throw e;
             }
-            logger.error("Ошибка при сохранении пользователя: {}", e.getMessage());
-            throw new UserServiceException("Ошибка БД: не удалось сохранить пользователя", e);
-        } finally {
-            if (session != null) {
-                session.close();
+        }catch(Exception e){
+            logger.error(errorMessage, e.getCause());
+            throw new UserServiceException(errorMessage, e.getCause());
+        }
+    }
+
+
+    /**
+     * Обобщенный метод для операций без возвращаемого значения (Write: save, update, delete)
+     */
+
+    private  void executeWhithoutResult(Consumer<Session> action, String errorMessage){
+        try(Session session = HibernateUtil.getSessionFactory().openSession()) {
+            Transaction transaction = session.beginTransaction();
+            try{
+                action.accept(session);
+                transaction.commit();
+            }catch(Exception e){
+                if (transaction != null) transaction.rollback();
+                throw e;
             }
+        }catch(Exception e){
+            logger.error(errorMessage, e.getCause());
+            throw new UserServiceException(errorMessage, e.getCause());
         }
     }
 
     @Override
+    public void save(User user) {
+        executeWhithoutResult((session) ->{
+            session.persist(user);
+            logger.debug("Пользователь сохранён: {}", user);
+        }, "Ошибка БД: не удалось сохранить пользователя");
+    }
+
+    @Override
     public Optional<User> findById(Long id) {
-        Session session = null;
-        try {
-            session = HibernateUtil.getSessionFactory().openSession();
+        return executeWithResult(session -> {
             User user = session.get(User.class, id);
-            logger.info("Получили пользователя по id: {}", id);
+            logger.debug("Получили пользователя по id: {}", id);
             return Optional.ofNullable(user);
-        } catch (Exception e) {
-            logger.error("Ошибка при поиске пользователя по id {}", e.getMessage());
-            throw new UserServiceException("Не удалось найти пользователя по id", e);
-        } finally {
-            if (session != null) {
-                session.close();
-            }
-        }
+        }, "Не удалось найти пользователя по id");
     }
 
 
 
     @Override
     public List<User> findAll() {
-        Session session = null;
-        try {
-            session = HibernateUtil.getSessionFactory().openSession();
+        return executeWithResult(session -> {
             List<User> users = session.createQuery("FROM User", User.class).list();
-            logger.info("Найдено пользователей: {}", users.size());
+            logger.debug("Найдено пользователей: {}", users.size()); // Заменили info на debug
             return users;
-        } catch (Exception e) {
-            logger.error("Ошибка при получении списка пользователей: {}", e.getMessage());
-            throw new UserServiceException("Не удалось получить список пользователей", e);
-        } finally {
-            if (session != null) {
-                session.close();
-            }
-        }
+        }, "Не удалось получить список пользователей");
     }
 
     @Override
     public void update(User user) {
-        Session session = null;
-        Transaction tx = null;
-        try {
-            session = HibernateUtil.getSessionFactory().openSession();
-            tx = session.beginTransaction();
+        executeWhithoutResult(session -> {
             session.merge(user);
-            tx.commit();
-            logger.info("Обновили данные о пользователе {}", user);
-
-        }catch (Exception e) {
-            if (tx != null) {
-                tx.rollback();
-            }
-            logger.error("Ошибка при обновлении пользователя {}", e.getMessage());
-            throw new UserServiceException("Не удалось обновить данные пользователя", e);
-        }finally {
-            if (session != null) {
-                session.close();
-            }
-        }
-
+            logger.debug("Обновили данные о пользователе {}", user); // Заменили info на debug
+        }, "Не удалось обновить данные пользователя");
     }
 
     @Override
     public void delete(Long id) {
-        Session session = null;
-        Transaction tx = null;
-        try {
-            session = HibernateUtil.getSessionFactory().openSession();
-            tx = session.beginTransaction();
+        executeWhithoutResult(session -> {
             User user = session.get(User.class, id);
             if (user != null) {
                 session.remove(user);
-                tx.commit();
-                logger.info("Пользователь удалён: {}", id);
+                logger.debug("Пользователь удалён: {}", id); // Заменили info на debug
             } else {
                 logger.warn("Пользователь с id={} не найден для удаления", id);
-                tx.rollback();
             }
-        } catch (Exception e) {
-            if (tx != null) {
-                tx.rollback();
-            }
-            logger.error("Не получилось удалить пользователя {}", e.getMessage());
-            throw new UserServiceException("Не удалось удалить пользователя", e);
-        }
-        finally {
-            if (session != null) {
-                session.close();
-            }
-        }
+        }, "Не удалось удалить пользователя");
     }
 }
