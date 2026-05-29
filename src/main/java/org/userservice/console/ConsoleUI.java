@@ -68,7 +68,7 @@ public class ConsoleUI {
             printUser(user);
         } catch (IllegalArgumentException e) {
             System.out.println("Validation Error: " + e.getMessage());
-        } catch (UserServiceException e) { // Обработка ошибки БД
+        } catch (UserServiceException e) {
             System.out.println("Database Error: " + e.getMessage());
         }
     }
@@ -90,7 +90,7 @@ public class ConsoleUI {
             } else {
                 System.out.println("User with ID=" + id + " not found.");
             }
-        } catch (UserServiceException e) { // Обработка ошибки БД
+        } catch (UserServiceException e) {
             System.out.println("Database Error: " + e.getMessage());
         }
     }
