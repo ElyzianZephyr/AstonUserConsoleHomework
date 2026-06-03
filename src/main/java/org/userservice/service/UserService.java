@@ -1,15 +1,19 @@
 package org.userservice.service;
 
-import org.userservice.entity.User;
+import org.userservice.dto.UserRequest;
+import org.userservice.dto.UserResponse;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface UserService {
 
-    User createUser(String name, int age, String email);
-    Optional<User> findUser(Long id);
-    User updateUser(Long id, String name, int age, String email);
-    boolean deleteUser(Long id);
-    List<User> getAllUsers();
+    UserResponse createUser(UserRequest request);
+
+    UserResponse findUser(Long id);
+
+    UserResponse updateUser(Long id, UserRequest request);
+
+    void deleteUser(Long id);
+
+    List<UserResponse> getAllUsers();
 }

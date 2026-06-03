@@ -5,9 +5,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.userservice.dao.UserDAO;
+import org.userservice.dto.UserRequest;
+import org.userservice.dto.UserResponse;
 import org.userservice.entity.User;
+import org.userservice.mapper.UserMapper;
+import org.userservice.repository.UserRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,100 +24,100 @@ import static org.mockito.Mockito.*;
 class UserServiceImplTest {
 
     @Mock
-    private UserDAO userDAO;
+    private UserRepository userRepository;
+
+    @Mock
+    private UserMapper userMapper;
 
     @InjectMocks
     private UserServiceImpl userService;
 
     @Test
     void createUser_Success() {
-        User user = userService.createUser("Alice", 25, "alice@example.com");
+        UserRequest request = new UserRequest("Alice", 25, "alice@example.com");
+        User user = User.builder().name("Alice").age(25).email("alice@example.com").build();
+        User savedUser = User.builder().id(1L).name("Alice").age(25).email("alice@example.com").createdAt(LocalDateTime.now()).build();
+        UserResponse expectedResponse = new UserResponse(1L, "Alice", 25, "alice@example.com");
 
-        assertThat(user.getName()).isEqualTo("Alice");
-        assertThat(user.getAge()).isEqualTo(25);
-        assertThat(user.getEmail()).isEqualTo("alice@example.com");
-        verify(userDAO).save(any(User.class));
-    }
+        when(userMapper.toEntity(request)).thenReturn(user);
+        when(userRepository.save(user)).thenReturn(savedUser);
+        when(userMapper.toResponse(savedUser)).thenReturn(expectedResponse);
 
-    @Test
-    void createUser_InvalidAge_ThrowsException() {
-        assertThatThrownBy(() -> userService.createUser("Alice", -5, "alice@example.com"))
-                .isInstanceOf(IllegalArgumentException.class);
-        verify(userDAO, never()).save(any(User.class));
+        UserResponse actualResponse = userService.createUser(request);
+
+        assertThat(actualResponse).isEqualTo(expectedResponse);
+        verify(userRepository).save(user);
     }
 
     @Test
     void findUser_UserExists() {
-        User mockUser = new User("Bob", "bob@example.com", 30);
-        when(userDAO.findById(1L)).thenReturn(Optional.of(mockUser));
+        User user = User.builder().id(1L).name("Bob").build();
+        UserResponse expectedResponse = new UserResponse(1L, "Bob", 30, "bob@example.com");
 
-        Optional<User> result = userService.findUser(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userMapper.toResponse(user)).thenReturn(expectedResponse);
 
-        assertThat(result).isPresent().contains(mockUser);
+        UserResponse actualResponse = userService.findUser(1L);
+
+        assertThat(actualResponse).isEqualTo(expectedResponse);
     }
 
     @Test
-    void findUser_UserDoesNotExist() {
-        when(userDAO.findById(1L)).thenReturn(Optional.empty());
+    void findUser_UserDoesNotExist_ThrowsException() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
-        Optional<User> result = userService.findUser(1L);
-
-        assertThat(result).isEmpty();
+        assertThatThrownBy(() -> userService.findUser(1L))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void updateUser_Success() {
-        User existingUser = new User("OldName", "old@example.com", 20);
-        when(userDAO.findById(1L)).thenReturn(Optional.of(existingUser));
+        UserRequest request = new UserRequest("NewName", 25, "new@example.com");
+        User existingUser = User.builder().id(1L).name("OldName").build();
+        User updatedUser = User.builder().id(1L).name("NewName").build();
+        UserResponse expectedResponse = new UserResponse(1L, "NewName", 25, "new@example.com");
 
-        User updatedUser = userService.updateUser(1L, "NewName", 25, "new@example.com");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(existingUser)).thenReturn(updatedUser);
+        when(userMapper.toResponse(updatedUser)).thenReturn(expectedResponse);
 
-        assertThat(updatedUser.getName()).isEqualTo("NewName");
-        assertThat(updatedUser.getAge()).isEqualTo(25);
-        assertThat(updatedUser.getEmail()).isEqualTo("new@example.com");
-        verify(userDAO).update(existingUser);
-    }
+        UserResponse actualResponse = userService.updateUser(1L, request);
 
-    @Test
-    void updateUser_NotFound_ThrowsException() {
-        when(userDAO.findById(1L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> userService.updateUser(1L, "NewName", 25, "new@example.com"))
-                .isInstanceOf(IllegalArgumentException.class);
-        verify(userDAO, never()).update(any(User.class));
+        assertThat(actualResponse).isEqualTo(expectedResponse);
+        verify(userMapper).updateEntityFromRequest(request, existingUser);
     }
 
     @Test
     void deleteUser_Success() {
-        User mockUser = new User("Charlie", "charlie@example.com", 35);
-        when(userDAO.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(userRepository.existsById(1L)).thenReturn(true);
 
-        boolean result = userService.deleteUser(1L);
+        userService.deleteUser(1L);
 
-        assertThat(result).isTrue();
-        verify(userDAO).delete(1L);
+        verify(userRepository).deleteById(1L);
     }
 
     @Test
-    void deleteUser_NotFound() {
-        when(userDAO.findById(1L)).thenReturn(Optional.empty());
+    void deleteUser_NotFound_ThrowsException() {
+        when(userRepository.existsById(1L)).thenReturn(false);
 
-        boolean result = userService.deleteUser(1L);
-
-        assertThat(result).isFalse();
-        verify(userDAO, never()).delete(anyLong());
+        assertThatThrownBy(() -> userService.deleteUser(1L))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(userRepository, never()).deleteById(anyLong());
     }
 
     @Test
     void getAllUsers_ReturnsList() {
-        List<User> users = List.of(
-                new User("User1", "u1@example.com", 20),
-                new User("User2", "u2@example.com", 25)
-        );
-        when(userDAO.findAll()).thenReturn(users);
+        User user1 = User.builder().id(1L).build();
+        User user2 = User.builder().id(2L).build();
+        UserResponse response1 = new UserResponse(1L, "U1", 20, "u1@e.com");
+        UserResponse response2 = new UserResponse(2L, "U2", 25, "u2@e.com");
 
-        List<User> result = userService.getAllUsers();
+        when(userRepository.findAll()).thenReturn(List.of(user1, user2));
+        when(userMapper.toResponse(user1)).thenReturn(response1);
+        when(userMapper.toResponse(user2)).thenReturn(response2);
 
-        assertThat(result).hasSize(2).isEqualTo(users);
+        List<UserResponse> result = userService.getAllUsers();
+
+        assertThat(result).hasSize(2).containsExactly(response1, response2);
     }
 }
