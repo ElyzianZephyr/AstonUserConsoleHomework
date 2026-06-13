@@ -10,6 +10,7 @@ import org.userservice.exeption.DuplicateEmailException;
 import org.userservice.exeption.UserNotFoundException;
 import org.userservice.mapper.UserMapper;
 import org.userservice.repository.UserRepository;
+import org.userservice.producer.UserEventProducer;
 
 import java.util.List;
 
@@ -19,6 +20,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final UserEventProducer userEventProducer;
 
     @Override
     @Transactional
@@ -29,6 +31,9 @@ public class UserServiceImpl implements UserService {
 
         User user = userMapper.toEntity(request);
         User savedUser = userRepository.save(user);
+
+        userEventProducer.sendUserEvent("CREATE", savedUser.getEmail());
+
         return userMapper.toResponse(savedUser);
     }
 
@@ -58,10 +63,12 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new UserNotFoundException(id);
-        }
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
         userRepository.deleteById(id);
+
+        userEventProducer.sendUserEvent("DELETE", user.getEmail());
     }
 
     @Override
