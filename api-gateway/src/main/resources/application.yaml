@@ -19,6 +19,11 @@ spring:
               args:
                 name: userServiceCB
                 fallbackUri: forward:/fallback/users
+
+        - id: notification-service-route
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**
     config:
       import: "optional:configserver:http://localhost:8888"
 
