@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.userservice.dto.UserRequest;
 import org.userservice.dto.UserResponse;
+import org.userservice.hateoas.UserModelAssembler;
 import org.userservice.service.UserService;
 
 import java.util.List;
@@ -26,19 +27,20 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 public class UserController {
 
     private final UserService userService;
+    private final UserModelAssembler userAssembler;
 
     @PostMapping
     @Operation(summary = "Создать нового пользователя", description = "Добавляет нового пользователя в систему и возвращает его данные вместе с HATEOAS ссылками.")
     public ResponseEntity<EntityModel<UserResponse>> createUser(@Valid @RequestBody UserRequest request) {
         UserResponse response = userService.createUser(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(toHateoasModel(response));
+        return ResponseEntity.status(HttpStatus.CREATED).body(userAssembler.toModel(response));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Получить пользователя по ID")
     public ResponseEntity<EntityModel<UserResponse>> getUser(@PathVariable Long id) {
         UserResponse response = userService.findUser(id);
-        return ResponseEntity.ok(toHateoasModel(response));
+        return ResponseEntity.ok(userAssembler.toModel(response));
     }
 
     @PutMapping("/{id}")
@@ -47,7 +49,7 @@ public class UserController {
             @PathVariable Long id,
             @Valid @RequestBody UserRequest request) {
         UserResponse response = userService.updateUser(id, request);
-        return ResponseEntity.ok(toHateoasModel(response));
+        return ResponseEntity.ok(userAssembler.toModel(response));
     }
 
     @DeleteMapping("/{id}")
@@ -61,23 +63,12 @@ public class UserController {
     @Operation(summary = "Получить список всех пользователей")
     public ResponseEntity<CollectionModel<EntityModel<UserResponse>>> getAllUsers() {
         List<EntityModel<UserResponse>> users = userService.getAllUsers().stream()
-                .map(this::toHateoasModel)
-                .collect(Collectors.toList());
+                .map(userAssembler::toModel)
+                .toList();
 
         CollectionModel<EntityModel<UserResponse>> collectionModel = CollectionModel.of(users,
                 linkTo(methodOn(UserController.class).getAllUsers()).withSelfRel());
 
         return ResponseEntity.ok(collectionModel);
-    }
-
-    /**
-     * Вспомогательный метод для оборачивания UserResponse в EntityModel и добавления HATEOAS ссылок.
-     */
-    private EntityModel<UserResponse> toHateoasModel(UserResponse user) {
-        return EntityModel.of(user,
-                linkTo(methodOn(UserController.class).getUser(user.id())).withSelfRel(),
-                linkTo(methodOn(UserController.class).getAllUsers()).withRel("all-users"),
-                linkTo(methodOn(UserController.class).updateUser(user.id(), null)).withRel("update"),
-                linkTo(methodOn(UserController.class).deleteUser(user.id())).withRel("delete"));
     }
 }
