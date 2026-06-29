@@ -1,0 +1,84 @@
+version: '3.8'
+
+networks:
+  aston-network:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: AstonUserServiceDB
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pass
+    networks:
+      - aston-network
+    ports:
+      - "5432:5432"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - aston-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - aston-network
+
+  eureka-server:
+    build: ./eureka-server
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - aston-network
+
+  config-server:
+    build: ./config-server
+    container_name: config-server
+    depends_on:
+      - eureka-server
+    networks:
+      - aston-network
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - eureka-server
+    networks:
+      - aston-network
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    depends_on:
+      - postgres
+      - kafka
+      - eureka-server
+    networks:
+      - aston-network
+
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    depends_on:
+      - kafka
+      - eureka-server
+    networks:
+      - aston-network
